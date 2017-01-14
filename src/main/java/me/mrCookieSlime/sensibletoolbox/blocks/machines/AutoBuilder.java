@@ -1,5 +1,6 @@
 package me.mrCookieSlime.sensibletoolbox.blocks.machines;
-import org.bukkit.Bukkit;   
+
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.DyeColor;
 import org.bukkit.Effect;
@@ -18,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 
 import me.desht.dhutils.MiscUtil;
 import me.desht.dhutils.cuboid.Cuboid;
+import me.mrCookieSlime.sensibletoolbox.SensibleToolboxPlugin;
 import me.mrCookieSlime.sensibletoolbox.api.SensibleToolbox;
 import me.mrCookieSlime.sensibletoolbox.api.gui.ButtonGadget;
 import me.mrCookieSlime.sensibletoolbox.api.gui.CyclerGadget;
@@ -30,8 +32,9 @@ import me.mrCookieSlime.sensibletoolbox.api.util.STBUtil;
 import me.mrCookieSlime.sensibletoolbox.items.LandMarker;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
+
 public class AutoBuilder extends BaseSTBMachine {
-	
+
     private static final MaterialData md = STBUtil.makeColouredMaterial(Material.STAINED_CLAY, DyeColor.YELLOW);
     private static final int LANDMARKER_SLOT_1 = 10;
     private static final int LANDMARKER_SLOT_2 = 12;
@@ -46,7 +49,9 @@ public class AutoBuilder extends BaseSTBMachine {
     private int invSlot;  // the inventory slot index (into getInputSlots()) being pulled from
     private BuilderStatus status = BuilderStatus.NO_WORKAREA;
     private int baseScuPerOp;
-    private int Limit;
+    private boolean limit = false;
+    private static SensibleToolboxPlugin plugin = SensibleToolboxPlugin.getInstance();
+
     public AutoBuilder() {
         super();
         buildMode = AutoBuilderMode.CLEAR;
@@ -54,12 +59,12 @@ public class AutoBuilder extends BaseSTBMachine {
 
     public CoreProtectAPI getCoreProtect() {
     	Plugin plugin = Bukkit.getServer().getPluginManager().getPlugin("CoreProtect");
-    	     
+
     	// Check that CoreProtect is loaded
     	if (plugin == null || !(plugin instanceof CoreProtect)) {
     	    return null;
     	}
-    	        
+
     	// Check that the API is enabled
     	CoreProtectAPI CoreProtect = ((CoreProtect)plugin).getAPI();
     	if (CoreProtect.isEnabled()==false){
@@ -70,7 +75,7 @@ public class AutoBuilder extends BaseSTBMachine {
     	if (CoreProtect.APIVersion() < 4){
     	    return null;
     	}
-    	         
+
     	return CoreProtect;
     	}
     public AutoBuilder(ConfigurationSection conf) {
@@ -170,7 +175,7 @@ public class AutoBuilder extends BaseSTBMachine {
                     stop(false);
                 } else {
                     startup();
-                    setLimit(1);
+                    setLimit(true);
                 }
             }
         }));
@@ -193,9 +198,10 @@ public class AutoBuilder extends BaseSTBMachine {
 
     private void startup() {
         baseScuPerOp = getItemConfig().getInt("scu_per_op");
+        setLimit(true);
         if (workArea == null) {
             BuilderStatus bs = setupWorkArea();
-            if (bs != BuilderStatus.READY && getLimit() == 0) {
+            if (bs != BuilderStatus.READY && !isLimited()) {
                 setStatus(bs);
                 return;
             }
@@ -213,13 +219,13 @@ public class AutoBuilder extends BaseSTBMachine {
             }
         }
 
-        setLimit(1);
+
         setStatus(BuilderStatus.RUNNING);
     }
 
     private void stop(boolean finished) {
         setStatus(finished ? BuilderStatus.FINISHED : BuilderStatus.PAUSED);
-        setLimit(0);
+        setLimit(false);
     }
 
     private boolean initInventoryPointer() {
@@ -324,7 +330,7 @@ public class AutoBuilder extends BaseSTBMachine {
             if (!loc1.getWorld().equals(loc2.getWorld())) {
                 return BuilderStatus.LM_WORLDS_DIFFERENT;
             }
-            if (getLimit() == 1) {
+            if (getLimit()) {
             		return BuilderStatus.LIMIT_REACHED;
             }
             Location ourLoc = getLocation();
@@ -480,12 +486,12 @@ public class AutoBuilder extends BaseSTBMachine {
         return label;
     }
 
-    public int getLimit() {
-		return Limit;
+    public void setLimit(boolean flag) {
+		limit = flag;
 	}
 
-	public void setLimit(int limit) {
-		Limit = limit;
+	public boolean isLimited() {
+		return limit;
 	}
 
 	public enum AutoBuilderMode {
